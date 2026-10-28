@@ -1,0 +1,24 @@
+node_modules/
+dist/
+.astro/
+.DS_Store
+
+# Environment. The dev-only API base is committed; anything else is not.
+.env*
+!.env.development
+
+# Local state: uploaded workbooks and saved settings.
+/data/
+
+# The Cisco exports. These name real people and real credit balances —
+# they stay on the machine that produced them.
+/examples/
+*.xlsx
+*.xlsm
+*.xls
+*.csv
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]

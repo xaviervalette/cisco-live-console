@@ -1,0 +1,492 @@
+---
+/**
+ * One route per sidebar view, plus the only place that talks to the backend.
+ *
+ * The build is static: every card below ships with a placeholder and is then
+ * filled over `fetch`. A dead API leaves the placeholders in place, so the
+ * console degrades to static rather than to blank.
+ */
+import { site } from '~/sites/ciscolive/site';
+import Shell from '~/archetypes/app/Shell.astro';
+
+export function getStaticPaths() {
+  return site.views.map((v) => ({ params: { view: v.id } }));
+}
+---
+
+<Shell site={site} system="cisco-iq" view={Astro.params.view} base="" />
+
+<script>
+  import {
+    ApiError,
+    addEditRow,
+    card,
+    getJSON,
+    readEditRows,
+    readFields,
+    sendDelete,
+    sendFile,
+    sendJSON,
+    setBars,
+    setNote,
+    setRows,
+    setStats,
+    setSubtitle,
+    writeEditRows,
+    writeFields,
+    type Bar,
+  } from '~/lib/live';
+
+  /* ----------------------------------------------------------------- types */
+
+  interface PassSpec { id: string; label: string; credits: number; match: string }
+
+  interface Config {
+    event: { code: string; name: string; location: string; startDate: string; endDate: string };
+    passes: PassSpec[];
+    expiryHorizons: number[];
+  }
+
+  interface Dataset {
+    key: string;
+    label: string;
+    present: boolean;
+    rows: number | null;
+    error: string | null;
+    sizeKb: number | null;
+    updatedAt: string | null;
+  }
+
+  interface Overview {
+    event: Config['event'] & { daysToStart: number | null };
+    participants: {
+      total: number;
+      credits: number;
+      byPass: Array<{ label: string; registered: number; credits: number }>;
+      list: Array<{
+        name: string; email: string; pass: string; passId: string | null;
+        credits: number; sos: string[]; registeredOn: string | null;
+      }>;
+    };
+    credits: {
+      purchased: number; used: number; balance: number; expired: number;
+      pools: Array<{
+        so: string; purchased: number; used: number; balance: number; expired: number;
+        purchaseDate: string | null; expirationDate: string | null; daysRemaining: number | null;
+      }>;
+    };
+    purchasingPower: Array<{ id: string; label: string; credits: number; affordable: number; registered: number }>;
+    expiry: { buckets: Array<{ days: number; credits: number }>; beforeEvent: number; alreadyExpired: number };
+    editions: Array<{ code: string; participants: number; credits: number }>;
+    warnings: string[];
+    generatedOn: string;
+  }
+
+  /* ------------------------------------------------------------- formatting */
+
+  const num = new Intl.NumberFormat('en-GB');
+  const n = (v: number) => num.format(Math.round(v));
+
+  const day = (iso: string | null) =>
+    iso
+      ? new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        })
+      : '—';
+
+  /** A credit pool's time left, toned by urgency. Under a quarter is where a
+   *  pool stops being plannable, so that is where the colour changes. */
+  const remaining = (days: number | null) => {
+    if (days === null) return { text: 'No expiry', tone: 'neutral' as const };
+    if (days <= 0) return { text: 'Expired', tone: 'negative' as const };
+    if (days <= 90) return { text: `${n(days)} days`, tone: 'negative' as const };
+    if (days <= 180) return { text: `${n(days)} days`, tone: 'warning' as const };
+    return { text: `${n(days)} days`, tone: 'positive' as const };
+  };
+
+  /* -------------------------------------------------------------- overview */
+
+  async function overview() {
+    if (!card('event-headline')) return; // not this view
+    const d = await getJSON<Overview>('/overview');
+    if (!d) return;
+
+    /* --- headline ------------------------------------------------------ */
+
+    const title = document.querySelector<HTMLElement>('[data-view-title]');
+    if (title && d.event.name) title.textContent = d.event.name;
+
+    setSubtitle(
+      'event-headline',
+      [d.event.location, `${day(d.event.startDate)} – ${day(d.event.endDate)}`]
+        .filter(Boolean)
+        .join(' · '),
+    );
+
+    // The previous edition is the yardstick: two registrations means little
+    // until you know last year was six.
+    const previous = d.editions.find((e) => e.code !== d.event.code);
+    const swing = previous ? d.participants.total - previous.participants : null;
+
+    setStats('event-headline', [
+      {
+        label: 'Registered',
+        value: n(d.participants.total),
+        // The code's last four digits: the full 'CLEMEA2026' wraps the tile
+        // onto a third line and the year is the part being compared anyway.
+        delta: previous ? `${Math.abs(swing!)} vs ${previous.code.slice(-4)}` : undefined,
+        trend: swing === null || swing === 0 ? 'flat' : swing > 0 ? 'up' : 'down',
+      },
+      { label: 'Credits committed', value: n(d.participants.credits) },
+      { label: 'Credits available', value: n(d.credits.balance) },
+      {
+        label: 'Days to the event',
+        value: d.event.daysToStart === null ? '—' : n(d.event.daysToStart),
+      },
+    ]);
+
+    /* --- purchasing power ---------------------------------------------- */
+
+    setRows(
+      'purchasing-power',
+      d.purchasingPower.map((p) => ({
+        pass: p.label,
+        price: n(p.credits),
+        registered: n(p.registered),
+        affordable: {
+          text: `${n(p.affordable)} more`,
+          tone: p.affordable === 0 ? 'negative' : p.affordable < 3 ? 'warning' : 'positive',
+        },
+      })),
+      ['pass', 'price', 'registered', 'affordable'],
+      'No passes configured. Add them under Settings.',
+    );
+
+    setSubtitle(
+      'purchasing-power',
+      `${n(d.credits.balance)} credits available, spread across one pass type at a time.`,
+    );
+
+    /* --- participants --------------------------------------------------- */
+
+    setRows(
+      'participants',
+      d.participants.list.map((p) => ({
+        name: p.name || '—',
+        email: p.email || '—',
+        pass: { text: p.pass, tone: p.passId ? 'info' : 'warning' },
+        credits: n(p.credits),
+        registered: day(p.registeredOn),
+        // A registration split across pools shows both SO numbers, which is
+        // what makes the split visible instead of looking like two people.
+        so: p.sos.join(' + ') || '—',
+      })),
+      ['name', 'email', 'pass', 'credits', 'registered', 'so'],
+      `No registrations found for ${d.event.code}.`,
+    );
+
+    setSubtitle(
+      'participants',
+      `${n(d.participants.total)} registered for ${d.event.code}, ${n(d.participants.credits)} credits committed.`,
+    );
+
+    /* --- credits -------------------------------------------------------- */
+
+    setStats('credit-headline', [
+      { label: 'Purchased', value: n(d.credits.purchased) },
+      { label: 'Used', value: n(d.credits.used) },
+      { label: 'Available', value: n(d.credits.balance) },
+      { label: 'Expired', value: n(d.credits.expired) },
+    ]);
+
+    const expiryBars: Bar[] = d.expiry.buckets.map((b, i) => ({
+      label: `Within ${n(b.days)} days`,
+      value: `${n(b.credits)} cr`,
+      // Against the balance, so a full bar means every remaining credit
+      // dies by that date.
+      pct: d.credits.balance > 0 ? (b.credits / d.credits.balance) * 100 : 0,
+      tone: i === 0 ? 'negative' : i === 1 ? 'warning' : 'info',
+    }));
+
+    if (d.expiry.beforeEvent > 0) {
+      expiryBars.unshift({
+        label: 'Before the event',
+        value: `${n(d.expiry.beforeEvent)} cr`,
+        pct: d.credits.balance > 0 ? (d.expiry.beforeEvent / d.credits.balance) * 100 : 0,
+        tone: 'negative',
+      });
+    }
+
+    setBars('expiry-bars', expiryBars);
+    setSubtitle(
+      'expiry-bars',
+      d.expiry.beforeEvent > 0
+        ? `${n(d.expiry.beforeEvent)} credits expire before the event opens and cannot pay for a pass to it.`
+        : `No credits expire before the event. ${n(d.expiry.alreadyExpired)} have already been written off historically.`,
+    );
+
+    setRows(
+      'credit-pools',
+      d.credits.pools.map((p) => {
+        const left = remaining(p.daysRemaining);
+        return {
+          so: p.so,
+          purchased: n(p.purchased),
+          used: n(p.used),
+          balance: n(p.balance),
+          expires: day(p.expirationDate),
+          remaining: { text: left.text, tone: left.tone },
+        };
+      }),
+      ['so', 'purchased', 'used', 'balance', 'expires', 'remaining'],
+      'No SO History uploaded yet.',
+    );
+
+    const livePools = d.credits.pools.filter((p) => p.balance > 0).length;
+    setSubtitle(
+      'credit-pools',
+      `${n(livePools)} of ${n(d.credits.pools.length)} pools still hold credits — those are listed first.`,
+    );
+
+    /* --- editions ------------------------------------------------------- */
+
+    const peak = Math.max(1, ...d.editions.map((e) => e.participants));
+    setBars(
+      'edition-history',
+      d.editions.map((e) => ({
+        label: e.code,
+        value: `${n(e.participants)} people`,
+        pct: (e.participants / peak) * 100,
+        tone: e.code === d.event.code ? 'info' : 'neutral',
+      })),
+    );
+
+    /* --- warnings ------------------------------------------------------- */
+
+    if (d.warnings.length) {
+      setSubtitle('event-headline', d.warnings.join(' '));
+    }
+  }
+
+  /* -------------------------------------------------------------- settings */
+
+  /** Paint each upload zone with what the backend says it holds. */
+  function paintDatasets(datasets: Dataset[]) {
+    const root = card('uploads');
+    if (!root) return;
+    for (const ds of datasets) {
+      const zone = root.querySelector<HTMLElement>(`[data-upload-zone="${ds.key}"]`);
+      const status = zone?.querySelector<HTMLElement>('[data-upload-status]');
+      if (!status) continue;
+      if (ds.error) {
+        setNote(status, `Present but unreadable: ${ds.error}`, 'error');
+      } else if (!ds.present) {
+        setNote(status, 'Not uploaded. The Overview will read zero for this source.', 'error');
+      } else {
+        setNote(
+          status,
+          `${n(ds.rows ?? 0)} rows · ${ds.sizeKb ?? 0} KB · updated ${day(ds.updatedAt)}`,
+          'ok',
+        );
+      }
+    }
+  }
+
+  function paintConfig(config: Config) {
+    const form = card('event-form')?.querySelector<HTMLElement>('[data-form]');
+    if (form) {
+      writeFields(form, {
+        ...config.event,
+        horizons: config.expiryHorizons.join(', '),
+      });
+    }
+
+    const rows = card('pass-catalogue')?.querySelector<HTMLElement>('[data-editrows]');
+    if (rows) {
+      writeEditRows(
+        rows,
+        config.passes.map((p) => ({ label: p.label, credits: p.credits, match: p.match })),
+      );
+    }
+  }
+
+  function paintBackend(ok: boolean, datasets: Dataset[]) {
+    const root = card('backend-status');
+    const values = root?.querySelectorAll<HTMLElement>('dd');
+    if (!values || values.length < 2) return;
+    const healthy = ok && datasets.every((d) => d.present && !d.error);
+    values[1].textContent = ok
+      ? healthy
+        ? 'Connected. Both workbooks readable.'
+        : 'Connected, but a workbook is missing or unreadable.'
+      : 'Unreachable. Cards are showing their placeholders.';
+    values[1].style.color = ok ? (healthy ? '#007a2f' : '#b45309') : '#c10007';
+  }
+
+  async function settings() {
+    const uploads = card('uploads');
+    if (!uploads) return; // not this view
+
+    const initial = await getJSON<{ config: Config; datasets: Dataset[] }>('/settings');
+    if (!initial) {
+      paintBackend(false, []);
+      const root = card('uploads');
+      root?.querySelectorAll<HTMLElement>('[data-upload-status]').forEach((el) =>
+        setNote(el, 'Backend unreachable — cannot report what is stored.', 'error'),
+      );
+      return;
+    }
+
+    paintConfig(initial.config);
+    paintDatasets(initial.datasets);
+    paintBackend(true, initial.datasets);
+
+    /* --- uploads -------------------------------------------------------- */
+
+    async function send(key: string, file: File, status: HTMLElement | null) {
+      setNote(status, `Uploading ${file.name}…`);
+      try {
+        const res = await sendFile<{ datasets: Dataset[] }>(`/upload/${key}`, file);
+        paintDatasets(res.datasets);
+        paintBackend(true, res.datasets);
+      } catch (err) {
+        setNote(status, err instanceof ApiError ? err.message : 'Upload failed.', 'error');
+      }
+    }
+
+    uploads.querySelectorAll<HTMLElement>('[data-upload-zone]').forEach((zone) => {
+      const key = zone.dataset.uploadZone!;
+      const status = zone.querySelector<HTMLElement>('[data-upload-status]');
+      const input = zone.querySelector<HTMLInputElement>('[data-upload-input]');
+
+      input?.addEventListener('change', () => {
+        const file = input.files?.[0];
+        // Clear the input so re-picking the same file fires `change` again.
+        if (file) void send(key, file, status).finally(() => (input.value = ''));
+      });
+
+      // Drag and drop over the whole row, not just the button.
+      for (const type of ['dragenter', 'dragover'] as const) {
+        zone.addEventListener(type, (e) => {
+          e.preventDefault();
+          zone.setAttribute('data-dragging', '');
+        });
+      }
+      for (const type of ['dragleave', 'dragend'] as const) {
+        zone.addEventListener(type, () => zone.removeAttribute('data-dragging'));
+      }
+      zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.removeAttribute('data-dragging');
+        const file = (e as DragEvent).dataTransfer?.files?.[0];
+        if (file) void send(key, file, status);
+      });
+
+      zone.querySelector<HTMLElement>('[data-upload-remove]')?.addEventListener('click', async () => {
+        setNote(status, 'Removing…');
+        try {
+          const res = await sendDelete<{ datasets: Dataset[] }>(`/upload/${key}`);
+          paintDatasets(res.datasets);
+          paintBackend(true, res.datasets);
+        } catch (err) {
+          setNote(status, err instanceof ApiError ? err.message : 'Could not remove it.', 'error');
+        }
+      });
+    });
+
+    /* --- event form ----------------------------------------------------- */
+
+    const form = card('event-form')?.querySelector<HTMLFormElement>('[data-form]');
+    const formNote = form?.querySelector<HTMLElement>('[data-form-status]') ?? null;
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fields = readFields(form);
+
+      if (!fields.code) {
+        setNote(formNote, 'An edition code is required — it is how registrations are matched.', 'error');
+        return;
+      }
+
+      const horizons = fields.horizons
+        .split(',')
+        .map((part) => Number(part.trim()))
+        .filter((value) => Number.isFinite(value) && value > 0);
+
+      if (fields.horizons.trim() && horizons.length === 0) {
+        setNote(formNote, 'Deadlines must be whole numbers of days, comma-separated.', 'error');
+        return;
+      }
+
+      setNote(formNote, 'Saving…');
+      try {
+        const res = await sendJSON<{ config: Config }>('/settings', {
+          config: {
+            event: {
+              code: fields.code.toUpperCase(),
+              name: fields.name,
+              location: fields.location,
+              startDate: fields.startDate,
+              endDate: fields.endDate,
+            },
+            expiryHorizons: horizons,
+          },
+        });
+        paintConfig(res.config);
+        setNote(formNote, 'Saved. The Overview picks it up on its next load.', 'ok');
+      } catch (err) {
+        setNote(formNote, err instanceof ApiError ? err.message : 'Could not save.', 'error');
+      }
+    });
+
+    /* --- pass catalogue -------------------------------------------------- */
+
+    const catalogue = card('pass-catalogue')?.querySelector<HTMLFormElement>('[data-editrows]');
+    const catalogueNote = catalogue?.querySelector<HTMLElement>('[data-editrows-status]') ?? null;
+
+    catalogue?.querySelector('[data-editrows-add]')?.addEventListener('click', () => {
+      addEditRow(catalogue);
+      setNote(catalogueNote, 'Unsaved row added.');
+    });
+
+    // Delegated, so a row added after load removes itself too.
+    catalogue?.addEventListener('click', (e) => {
+      const button = (e.target as HTMLElement).closest('[data-editrows-remove]');
+      if (!button) return;
+      button.closest('[data-editrows-row]')?.remove();
+      setNote(catalogueNote, 'Row removed. Save to apply.');
+    });
+
+    catalogue?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const rows = readEditRows(catalogue);
+      if (rows.length === 0) {
+        setNote(catalogueNote, 'Keep at least one pass, or the Overview has nothing to price.', 'error');
+        return;
+      }
+
+      setNote(catalogueNote, 'Saving…');
+      try {
+        const res = await sendJSON<{ config: Config }>('/settings', {
+          config: {
+            passes: rows.map((row) => ({
+              id: row.label.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+              label: row.label,
+              credits: Number(row.credits),
+              match: row.match,
+            })),
+          },
+        });
+        paintConfig(res.config);
+        setNote(catalogueNote, `Saved ${res.config.passes.length} passes.`, 'ok');
+      } catch (err) {
+        setNote(catalogueNote, err instanceof ApiError ? err.message : 'Could not save.', 'error');
+      }
+    });
+  }
+
+  // Each view fills only its own slots; the other returns immediately.
+  void Promise.all([overview(), settings()]);
+</script>

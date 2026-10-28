@@ -1,0 +1,18 @@
+---
+/** Status pill. Tones map to the contract's semantic colours. */
+import type { BadgeTone } from '~/content/app';
+interface Props { tone?: BadgeTone; }
+const { tone = 'neutral' } = Astro.props;
+
+// color-mix keeps every tone derived from the system, so a reskin carries.
+const tones: Record<BadgeTone, string> = {
+  neutral:  'bg-[var(--surface-2)] text-[var(--ink-muted)]',
+  positive: 'bg-[color-mix(in_srgb,#00a63e_12%,transparent)] text-[#007a2f]',
+  warning:  'bg-[color-mix(in_srgb,#e17100_14%,transparent)] text-[#b45309]',
+  negative: 'bg-[color-mix(in_srgb,#e7000b_12%,transparent)] text-[#c10007]',
+  info:     'bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] text-[var(--primary)]',
+};
+---
+<span class={`inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] px-2.5 py-1 text-[12px] leading-[18px] font-medium ${tones[tone]}`}>
+  <slot />
+</span>

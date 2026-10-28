@@ -1,0 +1,46 @@
+---
+/**
+ * Loads the token contract plus every design system's tokens, then activates
+ * exactly one via `data-system` on <html>. Because each system scopes its
+ * tokens to `html[data-system='<id>']`, the inactive ones cost nothing but a
+ * few hundred bytes and never collide.
+ *
+ * Adding a system means adding one import line here and one registry entry.
+ */
+import '~/systems/contract.css';
+import '~/systems/cisco-iq/tokens.css';
+
+import { SYSTEMS, type SystemId } from '~/systems';
+
+interface Props {
+  site: { meta: { title: string; description: string; lang?: string } };
+  system: SystemId;
+}
+const { site, system } = Astro.props;
+const ds = SYSTEMS[system];
+---
+
+<!doctype html>
+<html lang={site.meta.lang ?? 'en'} data-system={system}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{site.meta.title}</title>
+    <meta name="description" content={site.meta.description} />
+    <meta property="og:title" content={site.meta.title} />
+    <meta property="og:description" content={site.meta.description} />
+    <meta property="og:type" content="website" />
+    <meta name="generator" content={`design-system:${ds.id}`} />
+
+    {ds.fontHref && (
+      <>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link rel="stylesheet" href={ds.fontHref} />
+      </>
+    )}
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

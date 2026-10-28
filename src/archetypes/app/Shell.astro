@@ -1,0 +1,164 @@
+---
+/**
+ * The application shell: a fixed-height header over a sidebar + scrolling
+ * canvas. This is the structural half of a design system — the part tokens
+ * alone cannot express, and the reason this archetype exists separately from
+ * `marketing`.
+ *
+ * Layout, as measured on Cisco IQ at 1152px wide:
+ *   header            100% x 56px
+ *   content-area      flex row, fills the rest
+ *     sidenav         280px, own scroll
+ *     canvas          flex-1, own scroll, padding 24px 36px 24px 24px
+ *
+ * The canvas is a single column of container cards with a 12px gap, headed
+ * by the page title.
+ */
+import type { AppSite, AppView } from '~/content/app';
+import type { SystemId } from '~/systems';
+
+import Base from '~/layouts/Base.astro';
+import Topbar from './components/Topbar.astro';
+import Sidebar from './components/Sidebar.astro';
+import ContainerCard from './components/ContainerCard.astro';
+import CardBody from './components/CardBody.astro';
+
+interface Props {
+  site: AppSite;
+  system: SystemId;
+  /** Which view to render. Defaults to the first. */
+  view?: string;
+  /** URL prefix the sidebar links against, e.g. '/eol'. */
+  base: string;
+}
+const { site, system, view, base } = Astro.props;
+
+const current: AppView = site.views.find((v) => v.id === view) ?? site.views[0];
+---
+
+<Base site={{ meta: site.meta }} system={system}>
+  <div id="shell" class="flex h-svh flex-col overflow-hidden bg-[var(--bg)]">
+    <Topbar tenant={site.tenant} utilities={site.utilities} />
+
+    <div class="flex min-h-0 flex-1">
+      <Sidebar nav={site.nav} switcher={site.switcher} activeView={current.id} base={base} />
+
+      <div class="min-w-0 flex-1 overflow-y-auto">
+        <div class="flex flex-col gap-3" style="padding: var(--shell-canvas-pad)">
+          <div class="flex flex-col gap-1">
+            <div class="flex flex-wrap items-center gap-3">
+              {/* Addressable, so a console whose subject comes from
+                  configuration can name it here rather than hard-coding the
+                  current edition into the content file. */}
+              <h1
+                data-view-title
+                class="font-heading text-[24px] leading-[34px] font-bold text-[var(--ink-strong,var(--ink))]"
+              >
+                {current.title}
+              </h1>
+              {/* Runtime status. The archetype renders and tones it; whatever
+                  drives the app owns the text and the shell's data-state. */}
+              {current.statusPill && (
+                <span
+                  data-status-pill
+                  class="status-pill inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-[12px] leading-[18px] font-semibold text-[var(--ink-muted)]"
+                >
+                  <span class="status-dot size-1.5 rounded-full bg-[var(--ink-muted)]"></span>
+                  <span data-status-text>{current.statusPill.idle}</span>
+                </span>
+              )}
+            </div>
+            {current.subtitle && (
+              <p class="text-[14px] leading-[20px] text-[var(--ink-muted)]">{current.subtitle}</p>
+            )}
+          </div>
+
+          {current.cards.map((card) => (
+            <ContainerCard card={card}>
+              <CardBody body={card.body} />
+            </ContainerCard>
+          ))}
+
+          {/* Where a site hangs its own runtime code. Empty in a static
+              console, which is why the archetype stays backend-agnostic. */}
+          <slot />
+
+          {site.footer && (
+            <footer class="flex flex-wrap items-center gap-4 pt-4 pb-6 text-[12px] leading-[18px] text-[var(--ink-muted)]">
+              {site.footer.links.map((l) => (
+                <a href={l.href} class="transition-colors hover:text-[var(--primary)]">{l.label}</a>
+              ))}
+              {site.footer.legal && <span class="ms-auto">{site.footer.legal}</span>}
+            </footer>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    /* --- Runtime state -------------------------------------------------
+       One attribute on the shell root decides what is visible and how the
+       status pill is toned. Nothing here knows what produces the state. */
+
+    /* A card that declares `states` is hidden until the shell is in one.
+       Global, because the cards belong to ContainerCard: Astro would
+       otherwise scope these selectors to Shell's own elements and they
+       would match nothing. */
+    :global([data-states]) {
+      display: none;
+    }
+    :global([data-state='running'] [data-states~='running']),
+    :global([data-state='done'] [data-states~='done']),
+    :global([data-state='error'] [data-states~='error']),
+    :global([data-state='idle'] [data-states~='idle']) {
+      display: block;
+    }
+
+    [data-state='running'] .status-pill {
+      border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+      background-color: color-mix(in srgb, var(--primary) 12%, transparent);
+      color: var(--primary);
+    }
+    [data-state='running'] .status-dot {
+      background-color: var(--primary);
+      animation: status-pulse 1.2s ease-in-out infinite;
+    }
+    [data-state='done'] .status-pill {
+      border-color: color-mix(in srgb, #00a63e 40%, transparent);
+      background-color: color-mix(in srgb, #00a63e 12%, transparent);
+      color: #007a2f;
+    }
+    [data-state='done'] .status-dot {
+      background-color: #00a63e;
+    }
+    [data-state='error'] .status-pill {
+      border-color: color-mix(in srgb, #c10007 40%, transparent);
+      background-color: color-mix(in srgb, #c10007 12%, transparent);
+      color: #c10007;
+    }
+    [data-state='error'] .status-dot {
+      background-color: #c10007;
+    }
+
+    @keyframes status-pulse {
+      50% { opacity: 0.3; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .status-dot { animation: none; }
+    }
+  </style>
+
+  <script>
+    // Collapse the sidenav. One attribute on the shell drives the width and
+    // label visibility, both of which are styled in Sidebar.astro.
+    const shell = document.getElementById('shell');
+    const btn = document.getElementById('nav-collapse');
+    btn?.addEventListener('click', () => {
+      const collapsed = shell?.getAttribute('data-nav') === 'collapsed';
+      if (collapsed) shell?.removeAttribute('data-nav');
+      else shell?.setAttribute('data-nav', 'collapsed');
+      btn.setAttribute('aria-expanded', String(collapsed));
+    });
+  </script>
+</Base>

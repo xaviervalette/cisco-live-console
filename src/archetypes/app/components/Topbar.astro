@@ -1,0 +1,58 @@
+---
+/**
+ * The 56px header: product mark at the start, utilities and a tenant switcher
+ * at the end. Cisco IQ sizes it with --base-header-height and pads it
+ * 10px 16px with 12px gaps.
+ */
+import type { Tenant, AppIconName } from '~/content/app';
+import AppIcon from './AppIcon.astro';
+import Logo from '~/components/Logo.astro';
+
+interface Props { tenant: Tenant; utilities?: Array<{ icon: AppIconName; label: string }>; }
+const { tenant, utilities = [] } = Astro.props;
+---
+
+<header
+  class="z-20 flex shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--surface-nav)] px-4"
+  style="height: var(--shell-header-h)"
+>
+  <button
+    type="button"
+    id="nav-collapse"
+    aria-label="Toggle navigation collapse"
+    class="grid size-9 shrink-0 place-items-center rounded-[var(--radius-button)] text-[var(--ink-body)] transition-colors hover:bg-[var(--surface-2)]"
+  >
+    <AppIcon name="menu" class="size-5" />
+  </button>
+
+  <a href="#" class="flex items-center gap-2">
+    <Logo size={24} />
+    <span class="font-heading text-[18px] leading-[24px] font-bold text-[var(--ink)]">{tenant.product}</span>
+  </a>
+
+  <div class="flex-1"></div>
+
+  <div class="flex items-center gap-3">
+    {utilities.map((u) => (
+      <button
+        type="button"
+        aria-label={u.label}
+        class="grid size-9 place-items-center rounded-[var(--radius-button)] text-[var(--ink-body)] transition-colors hover:bg-[var(--surface-2)]"
+      >
+        <AppIcon name={u.icon} class="size-5" />
+      </button>
+    ))}
+
+    {/* The tenant switcher: two stacked lines, 12px radius, 36px tall. */}
+    <button
+      type="button"
+      class="flex items-center gap-3 rounded-[var(--radius-button)] px-2.5 py-1 transition-colors hover:bg-[var(--surface-2)]"
+    >
+      <span class="flex flex-col items-start leading-tight">
+        <span class="text-[13px] font-semibold text-[var(--ink)]">{tenant.user}</span>
+        <span class="text-[12px] text-[var(--ink-muted)]">{tenant.org}</span>
+      </span>
+      <AppIcon name="chevron" class="size-4 text-[var(--ink-muted)]" />
+    </button>
+  </div>
+</header>

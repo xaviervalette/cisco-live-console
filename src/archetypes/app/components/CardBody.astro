@@ -1,0 +1,585 @@
+---
+/**
+ * Renders whichever body a card declares. Keeping the five shapes behind one
+ * component means a card's content type is a data decision, not a markup one.
+ */
+import type { CardBody } from '~/content/app';
+import AppIcon from './AppIcon.astro';
+import Badge from './Badge.astro';
+
+interface Props { body: CardBody; }
+const { body } = Astro.props;
+---
+
+{body.kind === 'steps' && (
+  <ul class="flex flex-col gap-2">
+    {body.items.map((s) => (
+      <li class="flex items-start gap-3 rounded-[var(--radius-row)] p-3 transition-colors hover:bg-[var(--surface-2)]">
+        <span class={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-[var(--radius-row)] ${
+          s.done ? 'bg-[color-mix(in_srgb,#00a63e_14%,transparent)] text-[#007a2f]'
+                 : 'bg-[var(--surface-2)] text-[var(--primary)]'}`}>
+          <AppIcon name={s.done ? 'check' : s.icon} class="size-5" />
+        </span>
+        <span class="flex flex-col gap-0.5">
+          <span class="text-[14px] leading-[20px] font-semibold text-[var(--ink)]">{s.title}</span>
+          <span class="text-[14px] leading-[20px] text-[var(--ink-muted)]">{s.description}</span>
+        </span>
+      </li>
+    ))}
+  </ul>
+)}
+
+{body.kind === 'tiles' && (
+  <div
+    class="grid gap-3"
+    style={`grid-template-columns: repeat(${body.columns ?? 2}, minmax(0, 1fr))`}
+  >
+    {body.items.map((t) => (
+      <a
+        href={t.href ?? '#'}
+        class="group flex items-start gap-3 rounded-[var(--radius-row)] border border-[var(--border)] bg-[var(--surface)] p-4 transition-all hover:border-[var(--primary)] hover:shadow-[var(--shadow-raised)]"
+      >
+        <span class="grid size-10 shrink-0 place-items-center rounded-[var(--radius-row)] bg-[var(--surface-2)] text-[var(--primary)]">
+          <AppIcon name={t.icon} class="size-5" />
+        </span>
+        <span class="flex flex-col gap-1">
+          <span class="text-[14px] leading-[20px] font-semibold text-[var(--ink)]">{t.title}</span>
+          <span class="text-[12px] leading-[18px] text-[var(--ink-muted)]">{t.description}</span>
+        </span>
+      </a>
+    ))}
+  </div>
+)}
+
+{body.kind === 'stats' && (
+  <div class="grid gap-3" style={`grid-template-columns: repeat(${Math.min(body.items.length, 4)}, minmax(0, 1fr))`}>
+    {body.items.map((s) => (
+      <div data-stat class="flex flex-col gap-1 rounded-[var(--radius-row)] bg-[var(--surface-2)] p-4">
+        <span data-stat-label class="text-[12px] leading-[18px] font-semibold text-[var(--ink-muted)]">{s.label}</span>
+        <span data-stat-value class="font-heading text-[24px] leading-[34px] font-bold text-[var(--ink)]">{s.value}</span>
+        {/* The trend lives in an attribute rather than a class so runtime
+            code can retone a stat by writing one value, the same way the
+            step chips and the bars work. */}
+        {s.delta && (
+          <span
+            data-stat-delta
+            data-trend={s.trend ?? 'up'}
+            class="stat-delta text-[12px] leading-[18px] font-semibold"
+          >
+            {s.delta}
+          </span>
+        )}
+      </div>
+    ))}
+  </div>
+)}
+
+{body.kind === 'table' && (
+  <div class="-mx-1 overflow-x-auto">
+    <table class="w-full border-collapse text-[14px] leading-[20px]">
+      <thead>
+        <tr class="border-b border-[var(--border)]">
+          {body.columns.map((c) => (
+            <th
+              class={`px-3 py-2 text-[12px] leading-[18px] font-semibold text-[var(--ink-muted)] ${
+                c.align === 'end' ? 'text-end' : 'text-start'}`}
+            >
+              {c.label}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody data-rows>
+        {body.rows.map((row) => (
+          <tr class="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-2)]">
+            {body.columns.map((c) => {
+              const cell = row[c.key];
+              return (
+                <td class={`px-3 py-2.5 text-[var(--ink)] ${c.align === 'end' ? 'text-end' : 'text-start'}`}>
+                  {typeof cell === 'string' ? cell : <Badge tone={cell.tone}>{cell.text}</Badge>}
+                </td>
+              );
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+)}
+
+{body.kind === 'prose' && (
+  <div class="flex flex-col gap-3">
+    {body.paragraphs.map((p) => (
+      <p class="text-[14px] leading-[20px] text-[var(--ink-body)]">{p}</p>
+    ))}
+  </div>
+)}
+
+{body.kind === 'input' && (
+  <div class="flex flex-col gap-4">
+    {/* The work area: a monospace field, an "or" rule, then a drop target.
+        Same two-route entry as the EOL assistant. */}
+    <div class="rounded-[var(--radius-row)] border border-dashed border-[var(--border)] bg-[var(--surface-2)] p-4">
+      <label class="sr-only" for="work-input">{body.placeholder ?? 'Input'}</label>
+      <textarea
+        id="work-input"
+        rows="5"
+        placeholder={body.placeholder}
+        class="w-full resize-y bg-transparent font-mono text-[13px] leading-[22px] text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none"
+      >{body.sample?.join('\n')}</textarea>
+      {body.hint && <p class="mt-1 font-mono text-[12px] text-[var(--ink-muted)]">{body.hint}</p>}
+
+      {body.upload && (
+        <>
+          <div class="my-4 flex items-center gap-3">
+            <span class="h-px flex-1 bg-[var(--border)]"></span>
+            <span class="text-[12px] text-[var(--ink-muted)]">or</span>
+            <span class="h-px flex-1 bg-[var(--border)]"></span>
+          </div>
+          <div class="flex items-center gap-3 rounded-[var(--radius-row)] border border-[var(--border)] bg-[var(--surface)] p-3">
+            <span class="grid size-9 shrink-0 place-items-center rounded-[var(--radius-row)] bg-[var(--surface-2)] text-[var(--primary)]">
+              <AppIcon name="upload" class="size-5" />
+            </span>
+            <span class="flex flex-col">
+              <span class="text-[14px] leading-[20px] text-[var(--ink)]">
+                <a href="#" class="font-semibold text-[var(--primary)]">{body.upload.label}</a> or drag &amp; drop
+              </span>
+              <span class="text-[12px] leading-[18px] text-[var(--ink-muted)]">{body.upload.hint}</span>
+            </span>
+          </div>
+        </>
+      )}
+    </div>
+
+    {body.actions && body.actions.length > 0 && (
+      <div class="flex flex-wrap items-center justify-end gap-2">
+        {body.actions.map((a, i) => (
+          <button
+            type="button"
+            class={`inline-flex items-center gap-2 rounded-[var(--radius-button)] px-4 py-2 text-[14px] leading-[20px] font-semibold transition-colors ${
+              a.secondary || i > 0
+                ? 'border border-[var(--border)] bg-[var(--surface)] text-[var(--ink)] hover:bg-[var(--surface-2)]'
+                : 'bg-[var(--primary)] text-[var(--primary-ink)] hover:brightness-110'
+            }`}
+          >
+            {a.icon && <AppIcon name={a.icon} class="size-4" />}
+            {a.label}
+            {a.badge !== undefined && (
+              <span class="rounded-[var(--radius-pill)] bg-[color-mix(in_srgb,currentColor_18%,transparent)] px-1.5 text-[12px]">
+                {a.badge}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+
+{body.kind === 'diff' && (
+  <div class="-mx-1 overflow-x-auto">
+    <table class="w-full border-collapse text-[14px] leading-[20px]">
+      <thead>
+        <tr class="border-b border-[var(--border)]">
+          {['Product', 'Field', 'Before', 'After', ''].map((h) => (
+            <th class="px-3 py-2 text-start text-[12px] leading-[18px] font-semibold text-[var(--ink-muted)]">{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {body.rows.map((r) => (
+          <tr class="border-b border-[var(--border)] last:border-0">
+            <td class="px-3 py-2.5 font-mono text-[13px] text-[var(--ink)]">{r.id}</td>
+            <td class="px-3 py-2.5 text-[var(--ink-body)]">{r.field}</td>
+            <td class={`px-3 py-2.5 font-mono text-[13px] ${
+              r.state === 'removed' || r.state === 'changed'
+                ? 'text-[#c10007] line-through decoration-[#c10007]/40'
+                : 'text-[var(--ink-muted)]'}`}>
+              {r.before ?? '—'}
+            </td>
+            <td class={`px-3 py-2.5 font-mono text-[13px] ${
+              r.state === 'added' || r.state === 'changed' ? 'text-[#007a2f]' : 'text-[var(--ink-muted)]'}`}>
+              {r.after ?? '—'}
+            </td>
+            <td class="px-3 py-2.5">
+              <Badge tone={
+                r.state === 'added' ? 'positive'
+                : r.state === 'removed' ? 'negative'
+                : r.state === 'changed' ? 'warning' : 'neutral'
+              }>{r.state}</Badge>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+)}
+
+{body.kind === 'keyvalue' && (
+  <div class="flex flex-col gap-5">
+    {body.groups.map((g) => (
+      <div class="flex flex-col gap-2">
+        <h3 class="text-[12px] leading-[18px] font-semibold tracking-[0.06em] text-[var(--ink-muted)] uppercase">
+          {g.title}
+        </h3>
+        <dl class="grid grid-cols-[minmax(140px,220px)_1fr] gap-x-4 gap-y-0">
+          {g.pairs.map((kv) => (
+            <>
+              <dt class="border-b border-[var(--border)] py-2 text-[13px] text-[var(--ink-muted)]">{kv.key}</dt>
+              <dd class={`border-b border-[var(--border)] py-2 text-[13px] text-[var(--ink)] ${kv.mono ? 'font-mono' : ''}`}>
+                {kv.value}
+              </dd>
+            </>
+          ))}
+        </dl>
+      </div>
+    ))}
+  </div>
+)}
+
+{body.kind === 'progress' && (
+  /* The runtime card. Everything here is addressable: `data-progress-*`
+     elements are what the app writes into, and the bar is a single width.
+     It renders meaningfully with no JS at all — 0%, the idle message, and
+     every chip pending. */
+  <div class="flex flex-col gap-3">
+    <div class="flex items-baseline justify-between gap-3">
+      <span data-progress-msg class="text-[14px] leading-[20px] text-[var(--ink-body)]">
+        {body.idle ?? 'Ready'}
+      </span>
+      <span data-progress-pct class="font-mono text-[13px] font-semibold text-[var(--ink)]">0%</span>
+    </div>
+
+    <span class="h-2 overflow-hidden rounded-[var(--radius-pill)] bg-[var(--surface-2)]">
+      <span
+        data-progress-bar
+        class="grad-a-bg block h-full rounded-[var(--radius-pill)] transition-[width] duration-300 ease-out"
+        style="width:0%"
+      ></span>
+    </span>
+
+    {/* Step chips. `data-progress-step` is the name the app reports back as
+        completed; `data-done` is what paints it.
+
+        Three states, not two: a phase can finish without having done its
+        job — an optional source the account has no subscription for, say.
+        Painting that green reads as success, so `data-done="warn"` is amber.
+        Absent means pending. */}
+    <div class="flex flex-wrap gap-1.5">
+      {body.steps.map((step) => (
+        <span
+          data-progress-step={step.key}
+          class="step-chip inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-[12px] leading-[18px] font-semibold text-[var(--ink-muted)] transition-colors"
+        >
+          <span class="step-dot size-1.5 rounded-full bg-[var(--ink-muted)]"></span>
+          {step.label}
+        </span>
+      ))}
+    </div>
+  </div>
+)}
+
+{body.kind === 'history' && (
+  <ul class="flex flex-col gap-3">
+    {body.entries.map((e) => (
+      <li class="flex flex-col gap-3 rounded-[var(--radius-row)] border border-[var(--border)] bg-[var(--surface)] p-4">
+        <div class="flex flex-wrap items-baseline justify-between gap-2">
+          <span class="flex items-baseline gap-2">
+            <span class="text-[14px] leading-[20px] font-semibold text-[var(--ink)]">{e.label}</span>
+            <span class="font-mono text-[12px] text-[var(--ink-muted)]">{e.timestamp}</span>
+          </span>
+          <span class="flex items-center gap-3">
+            <span class="text-[13px] text-[var(--ink-body)]">{e.total}</span>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] px-2.5 py-1 text-[12px] font-semibold text-[var(--ink-body)] transition-colors hover:bg-[var(--surface-2)]"
+            >
+              <AppIcon name="download" class="size-4" />
+              Download
+            </button>
+          </span>
+        </div>
+
+        {/* Coverage bars — the proportion of rows each source could enrich. */}
+        <div class="flex flex-col gap-1.5">
+          {e.coverage.map((c) => (
+            <div class="flex items-center gap-3">
+              <span class="w-28 shrink-0 text-[12px] text-[var(--ink-muted)]">{c.label}</span>
+              <span class="h-1.5 flex-1 overflow-hidden rounded-[var(--radius-pill)] bg-[var(--surface-2)]">
+                <span class="grad-a-bg block h-full rounded-[var(--radius-pill)]" style={`width:${c.pct}%`}></span>
+              </span>
+              <span class="w-10 shrink-0 text-end font-mono text-[12px] text-[var(--ink-body)]">{c.pct}%</span>
+            </div>
+          ))}
+        </div>
+
+        {e.tags && e.tags.length > 0 && (
+          <div class="flex flex-wrap gap-1.5">
+            {e.tags.map((t) => (
+              <span class="rounded-[var(--radius-pill)] bg-[var(--surface-2)] px-2 py-0.5 font-mono text-[11px] text-[var(--ink-muted)]">{t}</span>
+            ))}
+          </div>
+        )}
+      </li>
+    ))}
+  </ul>
+)}
+
+{body.kind === 'uploads' && (
+  /* One row per file the console expects. Everything runtime code needs is
+     an attribute: `data-upload-zone` identifies the dataset, and the status
+     line is written into rather than rebuilt, so a failed upload can explain
+     itself in place. Renders and reads correctly with no JS — the input is a
+     real file input behind a label. */
+  <div class="flex flex-col gap-3">
+    {body.zones.map((zone) => (
+      <div
+        data-upload-zone={zone.key}
+        class="upload-zone flex flex-wrap items-center gap-3 rounded-[var(--radius-row)] border border-dashed border-[var(--border)] bg-[var(--surface-2)] p-4 transition-colors"
+      >
+        <span class="grid size-10 shrink-0 place-items-center rounded-[var(--radius-row)] bg-[var(--surface)] text-[var(--primary)]">
+          <AppIcon name="upload" class="size-5" />
+        </span>
+
+        <span class="flex min-w-[200px] flex-1 flex-col gap-0.5">
+          <span class="text-[14px] leading-[20px] font-semibold text-[var(--ink)]">{zone.label}</span>
+          <span class="text-[12px] leading-[18px] text-[var(--ink-muted)]">{zone.hint}</span>
+          <span data-upload-status class="mt-0.5 text-[12px] leading-[18px] text-[var(--ink-muted)]">
+            Checking…
+          </span>
+        </span>
+
+        <span class="flex shrink-0 items-center gap-2">
+          <label
+            class="inline-flex cursor-pointer items-center gap-2 rounded-[var(--radius-button)] bg-[var(--primary)] px-3 py-2 text-[13px] leading-[18px] font-semibold text-[var(--primary-ink)] transition-[filter] hover:brightness-110"
+          >
+            <AppIcon name="upload" class="size-4" />
+            Replace
+            <input
+              data-upload-input
+              type="file"
+              accept={zone.accept ?? '.xlsx'}
+              class="sr-only"
+            />
+          </label>
+          <button
+            data-upload-remove
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[13px] leading-[18px] font-semibold text-[var(--ink-body)] transition-colors hover:bg-[var(--surface-2)]"
+          >
+            <AppIcon name="trash" class="size-4" />
+            Remove
+          </button>
+        </span>
+      </div>
+    ))}
+  </div>
+)}
+
+{body.kind === 'form' && (
+  <form data-form class="flex flex-col gap-5" novalidate>
+    {body.groups.map((group) => (
+      <fieldset class="flex flex-col gap-3 border-0 p-0">
+        <legend class="text-[12px] leading-[18px] font-semibold tracking-[0.06em] text-[var(--ink-muted)] uppercase">
+          {group.title}
+        </legend>
+        <div class="grid grid-cols-2 gap-3">
+          {group.fields.map((field) => (
+            <label class={`flex flex-col gap-1.5 ${field.span === 'full' ? 'col-span-2' : 'col-span-2 sm:col-span-1'}`}>
+              <span class="text-[13px] leading-[18px] font-medium text-[var(--ink-body)]">{field.label}</span>
+              <span class="relative flex items-center">
+                <input
+                  data-field={field.key}
+                  type={field.type ?? 'text'}
+                  value={field.value ?? ''}
+                  placeholder={field.placeholder}
+                  class="w-full rounded-[var(--radius-row)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[14px] leading-[20px] text-[var(--ink)] transition-colors focus:border-[var(--primary)] focus:outline-none"
+                />
+                {field.suffix && (
+                  <span class="pointer-events-none absolute end-3 text-[12px] text-[var(--ink-muted)]">
+                    {field.suffix}
+                  </span>
+                )}
+              </span>
+              {field.hint && <span class="text-[12px] leading-[18px] text-[var(--ink-muted)]">{field.hint}</span>}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+    ))}
+
+    <div class="flex flex-wrap items-center justify-end gap-3">
+      <span data-form-status class="flex-1 text-[13px] leading-[18px] text-[var(--ink-muted)]"></span>
+      <button
+        type="submit"
+        class="inline-flex items-center gap-2 rounded-[var(--radius-button)] bg-[var(--primary)] px-4 py-2 text-[14px] leading-[20px] font-semibold text-[var(--primary-ink)] transition-[filter] hover:brightness-110"
+      >
+        <AppIcon name="check" class="size-4" />
+        {body.submitLabel ?? 'Save'}
+      </button>
+    </div>
+  </form>
+)}
+
+{body.kind === 'editrows' && (
+  /* A catalogue small enough to edit in place. The empty row lives in a
+     <template> rather than in a JS string, so the markup for a row exists in
+     exactly one place and the add button only has to clone it. */
+  <form data-editrows class="flex flex-col gap-3" novalidate>
+    <div class="-mx-1 overflow-x-auto">
+      <table class="w-full border-collapse text-[14px] leading-[20px]">
+        <thead>
+          <tr class="border-b border-[var(--border)]">
+            {body.columns.map((c) => (
+              <th class="px-3 py-2 text-start text-[12px] leading-[18px] font-semibold text-[var(--ink-muted)]">
+                {c.label}
+              </th>
+            ))}
+            <th class="w-10 px-3 py-2"><span class="sr-only">Remove</span></th>
+          </tr>
+        </thead>
+        <tbody data-editrows-body>
+          {body.rows.map((row) => (
+            <tr data-editrows-row class="border-b border-[var(--border)] last:border-0">
+              {body.columns.map((c) => (
+                <td class="px-3 py-2">
+                  <input
+                    data-cell={c.key}
+                    type={c.type ?? 'text'}
+                    value={String(row[c.key] ?? '')}
+                    class="w-full rounded-[var(--radius-row)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[13px] leading-[18px] text-[var(--ink)] transition-colors focus:border-[var(--primary)] focus:outline-none"
+                  />
+                </td>
+              ))}
+              <td class="px-3 py-2 text-end">
+                <button
+                  data-editrows-remove
+                  type="button"
+                  aria-label="Remove this row"
+                  class="grid size-8 place-items-center rounded-[var(--radius-row)] text-[var(--ink-muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[#c10007]"
+                >
+                  <AppIcon name="trash" class="size-4" />
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    <template data-editrows-template>
+      <tr data-editrows-row class="border-b border-[var(--border)] last:border-0">
+        {body.columns.map((c) => (
+          <td class="px-3 py-2">
+            <input
+              data-cell={c.key}
+              type={c.type ?? 'text'}
+              value=""
+              class="w-full rounded-[var(--radius-row)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[13px] leading-[18px] text-[var(--ink)] transition-colors focus:border-[var(--primary)] focus:outline-none"
+            />
+          </td>
+        ))}
+        <td class="px-3 py-2 text-end">
+          <button
+            data-editrows-remove
+            type="button"
+            aria-label="Remove this row"
+            class="grid size-8 place-items-center rounded-[var(--radius-row)] text-[var(--ink-muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[#c10007]"
+          >
+            <AppIcon name="trash" class="size-4" />
+          </button>
+        </td>
+      </tr>
+    </template>
+
+    <div class="flex flex-wrap items-center gap-3">
+      <button
+        data-editrows-add
+        type="button"
+        class="inline-flex items-center gap-2 rounded-[var(--radius-button)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[13px] leading-[18px] font-semibold text-[var(--ink-body)] transition-colors hover:bg-[var(--surface-2)]"
+      >
+        <AppIcon name="plus" class="size-4" />
+        {body.addLabel ?? 'Add a row'}
+      </button>
+      <span data-editrows-status class="flex-1 text-[13px] leading-[18px] text-[var(--ink-muted)]"></span>
+      <button
+        type="submit"
+        class="inline-flex items-center gap-2 rounded-[var(--radius-button)] bg-[var(--primary)] px-4 py-2 text-[14px] leading-[20px] font-semibold text-[var(--primary-ink)] transition-[filter] hover:brightness-110"
+      >
+        <AppIcon name="check" class="size-4" />
+        {body.submitLabel ?? 'Save'}
+      </button>
+    </div>
+  </form>
+)}
+
+{body.kind === 'bars' && (
+  <div class="flex flex-col gap-2.5" data-bars data-empty={body.empty ?? 'Nothing to show.'}>
+    {body.items.map((b) => (
+      <div data-bar class="flex items-center gap-3">
+        <span data-bar-label class="w-40 shrink-0 truncate text-[13px] leading-[18px] text-[var(--ink-body)]">
+          {b.label}
+        </span>
+        <span class="h-2 flex-1 overflow-hidden rounded-[var(--radius-pill)] bg-[var(--surface-2)]">
+          <span
+            data-bar-fill
+            class="block h-full rounded-[var(--radius-pill)] transition-[width] duration-300 ease-out"
+            data-tone={b.tone ?? 'info'}
+            style={`width:${Math.max(0, Math.min(100, b.pct))}%`}
+          ></span>
+        </span>
+        <span data-bar-value class="w-24 shrink-0 text-end font-mono text-[12px] leading-[18px] font-semibold text-[var(--ink)]">
+          {b.value}
+        </span>
+      </div>
+    ))}
+  </div>
+)}
+
+<style>
+  /* A drop target under an active drag. Set by runtime code on dragenter and
+     cleared on drop or dragleave, so the state is one attribute. */
+  .upload-zone[data-dragging] {
+    border-color: var(--primary);
+    background-color: color-mix(in srgb, var(--primary) 8%, transparent);
+  }
+
+  /* A stat's delta, toned from its trend. The arrow is a pseudo-element so
+     runtime code writes only the figure and never the glyph. */
+  .stat-delta[data-trend='up'] { color: #007a2f; }
+  .stat-delta[data-trend='up']::before { content: '↑ '; }
+  .stat-delta[data-trend='down'] { color: #c10007; }
+  .stat-delta[data-trend='down']::before { content: '↓ '; }
+  .stat-delta[data-trend='flat'] { color: var(--ink-muted); }
+  .stat-delta[data-trend='flat']::before { content: '→ '; }
+
+  /* Bar tones, matching the badge palette already used by `diff` and the
+     table cells so one reading of colour holds across the console. */
+  [data-bar-fill][data-tone='info'] { background-color: var(--primary); }
+  [data-bar-fill][data-tone='neutral'] { background-color: var(--ink-muted); }
+  [data-bar-fill][data-tone='positive'] { background-color: #00a63e; }
+  [data-bar-fill][data-tone='warning'] { background-color: #e17100; }
+  [data-bar-fill][data-tone='negative'] { background-color: #e7000b; }
+
+  /* A completed step chip. Driven by an attribute rather than a class so the
+     runtime only has to set or clear one thing per chip. */
+  .step-chip[data-done] {
+    border-color: color-mix(in srgb, #00a63e 40%, transparent);
+    background-color: color-mix(in srgb, #00a63e 12%, transparent);
+    color: #007a2f;
+  }
+  .step-chip[data-done] .step-dot {
+    background-color: #00a63e;
+  }
+
+  /* Finished, but not successfully — the phase ran and produced nothing
+     usable. Green would claim more than happened. */
+  .step-chip[data-done='warn'] {
+    border-color: color-mix(in srgb, #e17100 40%, transparent);
+    background-color: color-mix(in srgb, #e17100 14%, transparent);
+    color: #b45309;
+  }
+  .step-chip[data-done='warn'] .step-dot {
+    background-color: #e17100;
+  }
+</style>

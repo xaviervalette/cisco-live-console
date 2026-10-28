@@ -1,0 +1,127 @@
+---
+/**
+ * The left navigation.
+ *
+ * Measured off Cisco IQ: 280px wide, 16px padding, 8px gaps. Items are 40px
+ * tall with a 12px radius, 16px icon-to-label gap. The active item takes a
+ * 10%-alpha gradient fill AND a gradient-filled label — Magnetic uses both
+ * together, which is what makes the active state read without a heavy pill.
+ *
+ * Collapsing swaps the width token and hides the labels. No framework: one
+ * attribute on the shell root drives it.
+ */
+import type { NavGroup, Switcher } from '~/content/app';
+import AppIcon from './AppIcon.astro';
+
+interface Props {
+  nav: NavGroup[];
+  switcher?: Switcher;
+  /** Id of the view being rendered; the matching item takes the active state. */
+  activeView?: string;
+  /** Prefix for view links, e.g. '/eol'. */
+  base: string;
+}
+const { nav, switcher, activeView, base } = Astro.props;
+---
+
+<aside
+  id="sidenav"
+  class="shrink-0 overflow-y-auto border-e border-[var(--border)] transition-[width] duration-300 ease-in-out"
+>
+  <div class="flex flex-col gap-[var(--shell-nav-gap)] p-4">
+    {switcher && (
+      <button
+        type="button"
+        class="nav-switcher flex items-center gap-3 rounded-[var(--radius-button)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_50%,transparent)] px-2.5 py-[7px] text-start text-[14px] leading-[20px] font-semibold text-[var(--ink-body)] transition-colors hover:bg-[var(--surface-2)]"
+      >
+        <AppIcon name={switcher.icon} class="size-5 shrink-0" />
+        <span class="nav-label flex-1 truncate">{switcher.label}</span>
+        <span class="nav-chevron flex shrink-0">
+          <AppIcon name="chevron" class="size-4 opacity-60" />
+        </span>
+      </button>
+    )}
+
+    {nav.map((group) => (
+      <nav class="flex flex-col gap-[var(--shell-nav-gap)]">
+        {group.label && (
+          <h2 class="nav-label ps-3 pt-2 text-[12px] leading-[18px] font-semibold text-[var(--ink-body)]">
+            {group.label}
+          </h2>
+        )}
+        <ul class="flex flex-col gap-[var(--shell-nav-gap)]">
+          {group.items.map((item) => {
+            const active = !!item.view && item.view === activeView;
+            const href = item.view ? `${base}/${item.view}` : (item.href ?? '#');
+            return (
+              <li>
+                <a
+                  href={href}
+                  aria-current={active ? 'page' : undefined}
+                  title={item.label}
+                  class="nav-item group flex items-center gap-4 rounded-[var(--radius-button)] px-4 text-[14px] leading-[20px] font-semibold text-[var(--ink)] transition-colors"
+                  style={`min-height: var(--shell-nav-h); ${active ? 'background-image: var(--nav-active-bg);' : ''}`}
+                >
+                  <AppIcon name={item.icon} class="size-6 shrink-0" />
+                  {active ? (
+                    <span class="nav-label grad-text flex-1 truncate" style="background-image: var(--nav-active-ink)">
+                      {item.label}
+                    </span>
+                  ) : (
+                    <span class="nav-label flex-1 truncate">{item.label}</span>
+                  )}
+                  {item.badge !== undefined && (
+                    <span class="nav-label shrink-0 rounded-[var(--radius-pill)] bg-[var(--surface-2)] px-1.5 text-[12px] font-semibold text-[var(--ink-muted)]">
+                      {item.badge}
+                    </span>
+                  )}
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+    ))}
+  </div>
+</aside>
+
+<style>
+  /* Width lives here rather than in an inline style, so the collapsed rule
+     below can actually override it — inline styles win over stylesheets. */
+  #sidenav {
+    width: var(--shell-sidebar-w);
+  }
+
+  /* Idle items get the hover wash; the active one already has its gradient. */
+  a:not([aria-current]):hover {
+    background-image: var(--nav-hover-bg);
+  }
+
+  /* Collapsed: icons only, centred on the rail.
+     The rail is 72px with 16px of padding, so each item is 40px wide. The
+     item's own 16px inline padding has to go as well — 32px of padding plus a
+     24px icon does not fit in 40px, and the icon ends up pushed off centre
+     rather than centred. Same for the flex gaps, which would otherwise
+     reserve space for a label that is no longer there. */
+  :global([data-nav='collapsed']) #sidenav {
+    width: 72px;
+  }
+  :global([data-nav='collapsed']) .nav-label,
+  :global([data-nav='collapsed']) .nav-chevron {
+    display: none;
+  }
+  :global([data-nav='collapsed']) .nav-item,
+  :global([data-nav='collapsed']) .nav-switcher {
+    justify-content: center;
+    padding-inline: 0;
+    gap: 0;
+  }
+
+  /* Match the width transition so the padding does not snap mid-animation. */
+  .nav-item,
+  .nav-switcher {
+    transition-property: background-color, background-image, padding-inline, gap;
+    transition-duration: 300ms;
+    transition-timing-function: ease-in-out;
+  }
+</style>

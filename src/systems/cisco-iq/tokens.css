@@ -1,0 +1,165 @@
+/* ---------------------------------------------------------------------------
+   Cisco IQ — observed from the live application.
+
+   Source: https://iq.cisco.com/ui/platform-home/overview, read in a signed-in
+   browser on 2026-10-25. The app is built on Cisco's **Magnetic** design
+   system (https://magnetic.cisco.com, publicly documented) and exposes 1,613
+   CSS custom properties. Every value below was read from the running page —
+   resolved through a canvas so Magnetic's lab()/oklch() colours land as sRGB.
+
+   Magnetic's own naming is four-part: --{role}-{property}-{emphasis}-{state},
+   e.g. --base-text-weak-default, --interact-bg-hover. The mapping from those
+   names to this project's contract is noted per line.
+
+   Two deliberate departures, both because this template is a marketing page
+   and Magnetic is an application design system:
+
+   1. Type scale. Magnetic's app scale tops out at 24px for a page title
+      (--base-font-size-primary-title). Its display ramp (n1..n5 = 60/48/40/
+      32/24) is what a landing page needs, so the scale below interpolates
+      across that ramp rather than the app titles.
+   2. Heading leading. Magnetic's h1 is 24px/34px (1.42), right for dense UI,
+      far too loose for a 60px hero. The display ramp's own ratio (n1 60/72 =
+      1.2) is used instead.
+
+   Sharp Sans is a LICENSED Cisco typeface and is not bundled here. It is
+   named first so it resolves for anyone who has it installed; everyone else
+   falls back to Inter, which Magnetic already uses for body text.
+--------------------------------------------------------------------------- */
+
+html[data-system='cisco-iq'] {
+  /* --- Surfaces ---------------------------------------------------------
+     Magnetic's page background is slate-50, not white; cards are the white
+     layer above it. --surface carries the glass alpha so cards pick up the
+     page tone through them (see --blur-card below).                        */
+  --bg: #f8fafc;                        /* --base-bg-default                */
+  --surface: rgba(255, 255, 255, 0.7);  /* --glass-bg-default               */
+  --surface-nav: #ffffff;               /* --navigation-bg-gradient         */
+  --surface-2: #f1f5f9;                 /* --base-bg-medium-default         */
+  --surface-dark: rgba(15, 23, 43, 0.9);/* polarity-dark --base-bg-weak     */
+  --band-dark: #020618;                 /* polarity-dark --base-bg-default  */
+  --chip-dark: #1d293d;                 /* polarity-dark --base-border-weak */
+
+  /* --- Ink --------------------------------------------------------------- */
+  --ink: #1d293d;                       /* --base-text-default              */
+  --ink-body: #45556c;                  /* --base-text-medium-default       */
+  --ink-muted: #62748e;                 /* --base-text-weak-default         */
+  --ink-on-dark: #f8fafc;               /* --base-text-default (dark)       */
+  --ink-on-dark-body: #cad5e2;          /* --base-text-weak-default (dark)  */
+  --ink-on-dark-muted: #90a1b9;         /* --control-border-default         */
+
+  /* --- Brand -------------------------------------------------------------
+     Magnetic calls the interactive blue "interact", not "primary" — it is
+     the same token that colours links, focus rings and primary buttons.    */
+  --primary: #155dfc;                   /* --interact-bg-default            */
+  --primary-ink: #ffffff;
+  --accent: #00bceb;                    /* Cisco cyan, --base-gradient-ai   */
+  --border: #cad5e2;                    /* --base-border-default            */
+  --ring: #155dfc;                      /* --interact-border-default        */
+
+  /* The three stops of Magnetic's signature "AI" gradient. */
+  --brand-a: #3b76ea;
+  --brand-b: #00bceb;
+  --brand-c: #63fff7;
+
+  /* --- Expression --------------------------------------------------------
+     --grad-a is Magnetic's --base-gradient-ai exactly, 27deg and all. It is
+     used here as a 1px button rim, where the angle is barely perceptible but
+     the colour ramp still reads as Cisco.                                   */
+  --grad-a: linear-gradient(27deg, #3b76ea 10.22%, #00bceb 88.93%, #63fff7 162.86%);
+  /* Gradient TEXT has to survive on the dark hero, so it runs horizontally
+     and starts at the brighter blue rather than Magnetic's navigation-label
+     gradient (#2b7fff → #1447e6), which goes too dark to read on #020618.  */
+  --grad-b: linear-gradient(90deg, #3b76ea, #00bceb 55%, #63fff7);
+  --grad-line: linear-gradient(#155dfc, #00bceb 60%, rgba(99, 255, 247, 0) 100%);
+
+  /* --- Backdrops ---------------------------------------------------------
+     Built from Magnetic's --ai-glow-* trio over the dark polarity base.    */
+  --backdrop-hero:
+    linear-gradient(180deg, #020618 0%, rgba(2, 6, 24, 0.7) 34%, transparent 64%),
+    radial-gradient(70% 55% at 18% 88%, rgba(59, 118, 234, 0.55), transparent 64%),
+    radial-gradient(70% 55% at 84% 84%, rgba(0, 188, 235, 0.42), transparent 62%),
+    radial-gradient(85% 60% at 50% 108%, rgba(99, 255, 247, 0.3), transparent 66%),
+    linear-gradient(180deg, #020618 0%, #0f172b 52%, #1d293d 100%);
+
+  --backdrop-dark:
+    radial-gradient(100% 70% at 50% 0%, rgba(59, 118, 234, 0.38), transparent 62%),
+    radial-gradient(70% 55% at 85% 30%, rgba(0, 188, 235, 0.2), transparent 60%),
+    linear-gradient(180deg, #020618 0%, #0f172b 55%, #f8fafc 100%);
+
+  --backdrop-light:
+    radial-gradient(60% 50% at 50% 0%, rgba(0, 188, 235, 0.1), transparent 70%),
+    radial-gradient(50% 40% at 85% 20%, rgba(59, 118, 234, 0.08), transparent 70%),
+    linear-gradient(180deg, #f8fafc, #ffffff);
+
+  --scrim-hero-to: #020618;
+  --scrim-band-to: #f8fafc;
+
+  /* --- Type --------------------------------------------------------------- */
+  --font-heading: 'Sharp Sans', 'Inter', -apple-system, 'Segoe UI', roboto, sans-serif;
+  --font-body: 'Inter', -apple-system, 'Segoe UI', roboto, sans-serif;
+
+  /* Magnetic ships Sharp Sans at 700 only. */
+  --heading-weight: 700;
+  --heading-tracking: 0;                /* Magnetic sets no letter-spacing  */
+  --heading-leading: 1.2;               /* n1 ramp ratio, 60/72             */
+
+  /* Interpolated across Magnetic's display ramp n4→n1 / n2 / n5, body p1–p3. */
+  --text-display: clamp(32px, 4vw, 60px);
+  --text-h2: clamp(32px, 4vw, 48px);
+  --text-h3: clamp(18px, 1.7vw, 24px);
+  --text-lead: clamp(16px, 1.2vw, 18px);
+  --text-body: clamp(14px, 1.25vw, 16px);
+  --text-small: clamp(12px, 1vw, 14px);
+
+  /* --- Shape ---------------------------------------------------------------
+     Magnetic's radii are a fixed ladder: xs 6, s 8, md 12, lg 16, xl 17.    */
+  --radius-card: 16px;                  /* --base-border-radius-large       */
+  --radius-row: 12px;                   /* --base-border-radius-medium      */
+  --radius-pill: 9999px;                /* --base-border-radius-pill        */
+  --radius-button: 12px;                /* observed on <button>             */
+  --radius-nav: 16px;
+  --border-width: 1px;                  /* --base-border-width-default      */
+
+  /* The signature glass bevel, read off a live card: a faint outer glow plus
+     two insets — light from the top-left, shade from the bottom-right. That
+     pairing is what makes Magnetic surfaces look lifted rather than flat.  */
+  --shadow-card:
+    0 0 8px 0 rgba(2, 6, 24, 0.05),
+    inset 2px 2px 2px -2px rgba(241, 245, 249, 0.4),
+    inset -2px -2px 2px -2px rgba(226, 232, 240, 0.4);
+  --shadow-raised: 0 4px 12px 1px rgba(39, 39, 42, 0.12); /* --base-box-shadow-raised */
+  --blur-card: 30px;                    /* --glass-backdrop-blur-medium     */
+
+  /* --- Application shell -------------------------------------------------
+     Measured off https://iq.cisco.com/ui/platform-home/overview at 1152px:
+     header 56px tall (--base-header-height), sidenav 280px, nav items 240x40
+     with 12px radius and 8px gaps, canvas padding 24px 36px 24px 24px.     */
+  --shell-header-h: 56px;
+  --shell-sidebar-w: 280px;
+  --shell-nav-h: 40px;
+  --shell-nav-gap: 8px;
+  --shell-canvas-pad: 24px 36px 24px 24px;
+  --card-pad: 24px;
+
+  /* --navigation-active-item-gradient, resolved from oklch. */
+  --nav-active-bg: linear-gradient(90deg, rgba(43, 127, 255, 0.1) 0.29%, rgba(79, 57, 246, 0.1) 100%);
+  /* --navigation-active-item-label-gradient: blue-500 → blue-700. */
+  --nav-active-ink: linear-gradient(90deg, #2b7fff, #1447e6);
+  /* --navigation-item-hover */
+  --nav-hover-bg: linear-gradient(90deg, rgba(142, 197, 255, 0.1) 0%, rgba(167, 180, 255, 0.1) 80%);
+
+  /* --- Rhythm --------------------------------------------------------------
+     Magnetic's spacing ladder is 4/8/12/16/24/32/48 with a 24px grid gutter;
+     --container tracks its `m` breakpoint (1280px).                        */
+  --section-px: clamp(16px, 4vw, 48px);
+  --section-py: clamp(48px, 8vw, 120px);
+  --container: 1280px;
+}
+
+/* Magnetic's glass surfaces are translucent AND blurred. The contract's
+   .blur-card utility already applies --blur-card; this adds the hairline that
+   Magnetic pairs it with (--glass-border-medium), scoped to this system. */
+html[data-system='cisco-iq'] .blur-card {
+  border: 1px solid rgba(202, 213, 225, 0.5);
+}

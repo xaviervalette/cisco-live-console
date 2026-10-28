@@ -1,0 +1,17 @@
+---
+/** The ring mark. Its gradient is the brand gradient, so it reskins for free. */
+interface Props { size?: number; class?: string; }
+const { size = 28, class: className = '' } = Astro.props;
+const id = `logo-${Math.random().toString(36).slice(2, 8)}`;
+---
+
+<svg width={size} height={size} viewBox="0 0 28 28" fill="none" aria-hidden="true" class={`shrink-0 ${className}`}>
+  <defs>
+    <linearGradient id={id} x1="2" y1="2" x2="26" y2="26" gradientUnits="userSpaceOnUse">
+      <stop stop-color="var(--brand-a)" />
+      <stop offset="0.5" stop-color="var(--brand-b)" />
+      <stop offset="1" stop-color="var(--brand-c)" />
+    </linearGradient>
+  </defs>
+  <circle cx="14" cy="14" r="11" stroke={`url(#${id})`} stroke-width="2.5" />
+</svg>

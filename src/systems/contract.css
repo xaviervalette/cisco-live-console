@@ -1,0 +1,172 @@
+/* ===========================================================================
+   THE TOKEN CONTRACT
+
+   Every design system in src/systems/<id>/tokens.css must define all of the
+   variables below, scoped to `html[data-system='<id>']`.
+
+   Sections and components may reference ONLY these names. No section hard-codes
+   a colour, radius, font or shadow — that is what makes a system swappable.
+
+   This file declares the defaults. A system that omits a token inherits the
+   value here rather than breaking, so a new system can start small and fill in.
+   =========================================================================== */
+
+@import 'tailwindcss';
+
+:root {
+  /* --- Surfaces --------------------------------------------------------- */
+  --bg: #ffffff;              /* page background                            */
+  --surface: #ffffff;         /* card sitting on a light section            */
+  --surface-nav: #ffffff;     /* the floating navbar. Separate from --surface
+                                 because the navbar floats over the hero, so a
+                                 glass alpha that reads fine on a light page
+                                 turns to mud over a dark backdrop.          */
+  --surface-2: #f9f9f9;       /* subtle fill: chips, wells                  */
+  --chip-dark: #291f39;       /* chip sitting on a dark card                */
+  --surface-dark: #0a0514e0;  /* card sitting on a dark band                */
+  --band-dark: #080414;       /* the dark band / footer base                */
+
+  /* --- Ink -------------------------------------------------------------- */
+  --ink: #1a0b54;             /* headings on light                          */
+  --ink-body: #4a4166;        /* body copy on light                         */
+  --ink-muted: #8379a0;       /* de-emphasised on light                     */
+  --ink-on-dark: #ffffff;     /* headings on dark                           */
+  --ink-on-dark-body: #bdaee7;/* body copy on dark                          */
+  --ink-on-dark-muted: #8379a0;
+
+  /* --- Brand ------------------------------------------------------------ */
+  --primary: #1c4eff;
+  --primary-ink: #ffffff;     /* text on a --primary fill                   */
+  --accent: #c86fff;
+  /* The three stops of the brand gradient, exposed separately so SVG marks
+     can use them (SVG gradients cannot read a CSS gradient). */
+  --brand-a: #1c4eff;
+  --brand-b: #ac24ff;
+  --brand-c: #fe881b;
+  --border: #e8e4f3;
+  --ring: #1c4eff;
+
+  /* --- Expression -------------------------------------------------------
+     Always gradients, even for flat systems — use the same colour twice,
+     e.g. linear-gradient(90deg, #000, #000). That keeps .grad-text working
+     without every section branching on whether a system has gradients.      */
+  --grad-a: linear-gradient(90deg, #1c4eff, #ac24ff 50%, #fe881b);
+  --grad-b: linear-gradient(90deg, #2ba7ff, #ca45ff 50%, #fe881b);
+  --grad-line: linear-gradient(#1c4eff, #ac24ff 40%, rgba(254, 136, 27, 0) 100%);
+
+  /* --- Backdrops --------------------------------------------------------- */
+  --backdrop-hero: linear-gradient(180deg, #04020c, #100726);
+  --backdrop-dark: linear-gradient(180deg, #080414, #ffffff);
+  --backdrop-light: linear-gradient(180deg, #fcfbff, #ffffff);
+  --scrim-hero-to: #000201;   /* colour the hero fades into at its foot     */
+  --scrim-band-to: #ffffff;   /* colour a dark band fades into              */
+
+  /* --- Type -------------------------------------------------------------- */
+  --font-heading: ui-sans-serif, system-ui, sans-serif;
+  --font-body: ui-sans-serif, system-ui, sans-serif;
+
+  --text-display: clamp(32px, 4vw, 56px);
+  --text-h2: clamp(28px, 4vw, 56px);
+  --text-h3: clamp(16px, 1.7vw, 24px);
+  --text-lead: clamp(15px, 1.2vw, 20px);
+  --text-body: clamp(14px, 1.25vw, 18px);
+  --text-small: clamp(12px, 1vw, 15px);
+
+  --heading-weight: 500;
+  --heading-tracking: -0.02em;
+  --heading-leading: 1.15;
+
+  /* --- Shape ------------------------------------------------------------- */
+  --radius-card: 36px;
+  --radius-row: 18px;
+  --radius-pill: 999px;
+  --radius-nav: 16px;
+  --radius-button: 12px;
+  --border-width: 1px;
+
+  --shadow-card: 0 3px 9.1px rgba(63, 74, 126, 0.05), 0 1px 29px rgba(63, 74, 126, 0.1);
+  --shadow-raised: 0 18px 50px rgba(20, 10, 60, 0.18);
+  --blur-card: 36px;          /* set to 0px for systems without glass        */
+
+  /* --- Application shell -------------------------------------------------
+     Used by the `app` archetype. Defaults are derived from the brand tokens
+     so any system can render an app shell; Cisco IQ overrides them with the
+     measurements read off the live product.                                */
+  --shell-header-h: 56px;
+  --shell-sidebar-w: 280px;
+  --shell-nav-h: 40px;
+  --shell-nav-gap: 8px;
+  --shell-canvas-pad: 24px 36px 24px 24px;
+  --card-pad: 24px;
+  --nav-active-bg: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--primary) 10%, transparent),
+    color-mix(in srgb, var(--accent) 10%, transparent)
+  );
+  /* Gradient applied to the ACTIVE nav label via .grad-text. */
+  --nav-active-ink: var(--grad-b);
+  --nav-hover-bg: color-mix(in srgb, var(--primary) 6%, transparent);
+
+  /* --- Rhythm ------------------------------------------------------------ */
+  --section-px: clamp(16px, 4vw, 40px);
+  --section-py: clamp(48px, 8vw, 120px);
+  --container: 1200px;
+}
+
+/* ===========================================================================
+   Utilities built on the contract. These work for every system.
+   =========================================================================== */
+
+.grad-text {
+  background-image: var(--grad-b);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.grad-a-bg { background-image: var(--grad-a); }
+.grad-line-bg { background-image: var(--grad-line); }
+.shadow-card { box-shadow: var(--shadow-card); }
+.shadow-raised { box-shadow: var(--shadow-raised); }
+
+.blur-card {
+  backdrop-filter: blur(var(--blur-card));
+  -webkit-backdrop-filter: blur(var(--blur-card));
+}
+
+.backdrop-hero { background: var(--backdrop-hero); }
+.backdrop-dark { background: var(--backdrop-dark); }
+.backdrop-light { background: var(--backdrop-light); }
+
+.font-heading { font-family: var(--font-heading); }
+.font-body { font-family: var(--font-body); }
+
+/* The heading recipe every section uses, so weight/tracking/leading are a
+   system decision rather than something each section restates. */
+.h-display,
+.h-section {
+  font-family: var(--font-heading);
+  font-weight: var(--heading-weight);
+  letter-spacing: var(--heading-tracking);
+  line-height: var(--heading-leading);
+}
+.h-display { font-size: var(--text-display); }
+.h-section { font-size: var(--text-h2); }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--ink-body);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
