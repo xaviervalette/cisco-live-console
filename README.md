@@ -62,8 +62,13 @@ console starts empty and says so until the first upload.
 
 | Dataset | Export | Key columns |
 |---|---|---|
-| **Transaction Report** | One row per debit, credit and refund | `TransactionId`, `CourseAcronym`, `Attendees`, `Credits`, `DebitStatus` |
+| **Transaction Report** | One row per debit, credit and refund | `TransactionId`, `CourseAcronym`, `Attendees`, `Credits`, `DebitStatus`, `CustomerName` |
 | **SO History** | One row per SO | `Purchased`, `Balance`, `Expired`, `ExpirationDate` |
+
+Nothing identifying is configured. The account named in the header comes
+from the Transaction Report's `CustomerName` column, so replacing the
+workbook renames the console and no deployment carries another
+organisation's name in its source.
 
 ### What counts as a participant
 

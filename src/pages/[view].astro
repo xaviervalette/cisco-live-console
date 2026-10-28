@@ -32,6 +32,7 @@ export function getStaticPaths() {
     setRows,
     setStats,
     setSubtitle,
+    setTenant,
     writeEditRows,
     writeFields,
     type Bar,
@@ -58,6 +59,7 @@ export function getStaticPaths() {
   }
 
   interface Overview {
+    customer: string;
     event: Config['event'] & { daysToStart: number | null };
     participants: {
       total: number;
@@ -112,6 +114,9 @@ export function getStaticPaths() {
     if (!card('event-headline')) return; // not this view
     const d = await getJSON<Overview>('/overview');
     if (!d) return;
+
+    // Whose account this is comes from the workbook, not from site.ts.
+    setTenant(d.customer, 'Learning Credits account');
 
     /* --- headline ------------------------------------------------------ */
 
@@ -329,7 +334,9 @@ export function getStaticPaths() {
     const uploads = card('uploads');
     if (!uploads) return; // not this view
 
-    const initial = await getJSON<{ config: Config; datasets: Dataset[] }>('/settings');
+    const initial = await getJSON<{ config: Config; datasets: Dataset[]; customer: string }>(
+      '/settings',
+    );
     if (!initial) {
       paintBackend(false, []);
       const root = card('uploads');
@@ -339,6 +346,7 @@ export function getStaticPaths() {
       return;
     }
 
+    setTenant(initial.customer, 'Learning Credits account');
     paintConfig(initial.config);
     paintDatasets(initial.datasets);
     paintBackend(true, initial.datasets);

@@ -27,6 +27,7 @@ the XLSX but the shape of what Cisco puts in it:
 from __future__ import annotations
 
 import re
+from collections import Counter
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -118,6 +119,19 @@ def parse_attendee(raw: str) -> tuple[str, str]:
 # --------------------------------------------------------------------------
 # Transaction report
 # --------------------------------------------------------------------------
+
+
+def read_customer(path: Path) -> str:
+    """The account the export belongs to, from its `CustomerName` column.
+
+    Whose console this is, is a property of the data, not of the source. The
+    most common value wins rather than the first, so one stray blank or
+    mistyped row cannot rename the account in the header.
+    """
+    names = Counter(
+        _as_text(row.get("CustomerName")) for row in read_sheet(path) if row.get("CustomerName")
+    )
+    return names.most_common(1)[0][0] if names else ""
 
 
 def read_transactions(path: Path) -> list[dict[str, Any]]:

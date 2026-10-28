@@ -23,7 +23,11 @@ export const site: AppSite = {
     lang: 'en',
   },
 
-  tenant: { product: 'Cisco Live', user: 'Alex Moreau', org: 'Your Organisation' },
+  /* The account is NOT content: it is read from the CustomerName column of
+     the uploaded Transaction Report and written into the header at runtime
+     (see setTenant in [view].astro). What ships here is only what shows
+     before that resolves, and on a console with no data uploaded yet. */
+  tenant: { product: 'Cisco Live', user: 'Learning Credits', org: 'No workbook uploaded' },
 
   switcher: { label: 'Cisco Live EMEA 2027', icon: 'calendar' },
 

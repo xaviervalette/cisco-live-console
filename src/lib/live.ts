@@ -341,3 +341,19 @@ export function setSubtitle(slot: string, text: string): void {
   const el = card(slot)?.querySelector<HTMLElement>('[data-card-subtitle]');
   if (el) el.textContent = text;
 }
+
+/**
+ * Name the account in the header from the data rather than from content.
+ *
+ * Which organisation a console is showing is a property of whatever was
+ * uploaded, not of the build — so it is written here at runtime, and no
+ * deployment ships someone else's name in its source. An empty name leaves
+ * the placeholder alone, which is what a console with no data should show.
+ */
+export function setTenant(name: string, subtitle?: string): void {
+  if (!name) return;
+  const primary = document.querySelector<HTMLElement>('[data-tenant-user]');
+  const secondary = document.querySelector<HTMLElement>('[data-tenant-org]');
+  if (primary) primary.textContent = name;
+  if (secondary && subtitle) secondary.textContent = subtitle;
+}

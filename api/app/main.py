@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from openpyxl import load_workbook
 
-from .analytics import load_overview
+from .analytics import customer_name, load_overview
 from .config import (
     DATASETS,
     DIST_DIR,
@@ -105,7 +105,13 @@ def overview() -> dict[str, Any]:
 
 @app.get("/api/settings")
 def get_settings() -> dict[str, Any]:
-    return {"config": load_config(), "datasets": _dataset_status()}
+    # `customer` rides along so every view can name the account in its
+    # header without each one having to fetch the whole overview.
+    return {
+        "config": load_config(),
+        "datasets": _dataset_status(),
+        "customer": customer_name(_paths()),
+    }
 
 
 @app.put("/api/settings")
@@ -156,7 +162,11 @@ def put_settings(payload: dict[str, Any]) -> dict[str, Any]:
         except (TypeError, ValueError):
             raise HTTPException(status_code=400, detail="Expiry horizons must be whole days.") from None
 
-    return {"config": save_config(config), "datasets": _dataset_status()}
+    return {
+        "config": save_config(config),
+        "datasets": _dataset_status(),
+        "customer": customer_name(_paths()),
+    }
 
 
 @app.post("/api/upload/{dataset}")

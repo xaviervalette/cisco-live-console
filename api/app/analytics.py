@@ -18,7 +18,23 @@ import math
 from datetime import date
 from typing import Any
 
-from .parsing import read_credit_pools, read_transactions
+from .parsing import read_credit_pools, read_customer, read_transactions
+
+
+def customer_name(paths: dict[str, Any]) -> str:
+    """Whose account this console is showing, read from the workbook.
+
+    Not configuration: the header names whoever the uploaded export belongs
+    to, so replacing the workbook renames the console and no deployment
+    carries another organisation's name in its source.
+    """
+    path = paths.get("transactions")
+    if not path or not path.exists():
+        return ""
+    try:
+        return read_customer(path)
+    except Exception:  # noqa: BLE001 - an unreadable workbook is reported elsewhere
+        return ""
 
 
 def classify_pass(suffixes: list[str], passes: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -317,5 +333,6 @@ def load_overview(config: dict[str, Any], paths: dict[str, Any], today: date | N
         warnings.append("No SO History uploaded yet.")
 
     payload = build_overview(config, transactions, pools, today=today)
+    payload["customer"] = customer_name(paths)
     payload["warnings"] = warnings
     return payload

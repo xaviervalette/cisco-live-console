@@ -48,9 +48,13 @@ const { tenant, utilities = [] } = Astro.props;
       type="button"
       class="flex items-center gap-3 rounded-[var(--radius-button)] px-2.5 py-1 transition-colors hover:bg-[var(--surface-2)]"
     >
+      {/* Addressable, so a console whose account comes from the uploaded
+          data can name it here instead of shipping it in the content file.
+          Both lines keep whatever the site declared until something writes
+          them, so a static console is unaffected. */}
       <span class="flex flex-col items-start leading-tight">
-        <span class="text-[13px] font-semibold text-[var(--ink)]">{tenant.user}</span>
-        <span class="text-[12px] text-[var(--ink-muted)]">{tenant.org}</span>
+        <span data-tenant-user class="text-[13px] font-semibold text-[var(--ink)]">{tenant.user}</span>
+        <span data-tenant-org class="text-[12px] text-[var(--ink-muted)]">{tenant.org}</span>
       </span>
       <AppIcon name="chevron" class="size-4 text-[var(--ink-muted)]" />
     </button>
